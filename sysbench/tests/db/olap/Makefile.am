@@ -1,6 +1,6 @@
 # Copyright (C) 2008 MySQL AB
 # Copyright (C) 2008-2014 Alexey Kopytov <akopytov@gmail.com>
-# Copyright (C) 2016 TidalScale Inc. <frank.hoeflich@tidalscale.com>
+# Copyright (C) 2016 TidalScale Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,4 +16,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-SUBDIRS = oltp olap
+# EXTRA_DIST = delete.lua insert.lua oltp.lua \
+#             oltp_simple.lua \
+#             parallel_prepare.lua \
+#             select_random_points.lua \
+#             select_random_ranges.lua \
+#             select.lua \
+#             update_index.lua \
+#             update_non_index.lua
+
+EXTRA_DIST = olap.lua
