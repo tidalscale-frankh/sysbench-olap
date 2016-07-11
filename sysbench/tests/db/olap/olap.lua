@@ -160,7 +160,7 @@ function set_vars()
    olap_table_size = olap_table_size or 10000
    olap_range_size = olap_range_size or 100
    olap_tables_count = olap_tables_count or 1
-   olap_simple_indexed_ranges = olap_simple_ranges or 1
+   olap_simple_indexed_ranges = olap_simple_ranges or 0
    olap_simple_unindexed_ranges = olap_simple_ranges or 0
    olap_count_indexed_ranges = olap_count_indexed_ranges or 1
    olap_count_unindexed_ranges = olap_count_unindexed_ranges or 1
