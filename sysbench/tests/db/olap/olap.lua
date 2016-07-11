@@ -10,11 +10,14 @@ function create_insert(table_id)
    local i
    local j
    local stmt
+   local start
+   local now
+   local end_estimated
 
-   table_name = "olaptest" .. table_id
+   table_name = string.format("olaptest%d", table_id)
 
-   print("Creating table " .. table_name .. "...")
-   query = [[CREATE TABLE ]] .. table_name .. [[ (
+   print(string.format("Creating table %s...", table_name))
+   query = string.format([[CREATE TABLE IF NOT EXISTS %s (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     key1 BIGINT UNSIGNED NOT NULL,
     key2 BIGINT UNSIGNED NOT NULL,
@@ -49,33 +52,67 @@ function create_insert(table_id)
     nonkey28 CHAR(255) NOT NULL,
     nonkey29 CHAR(255) NOT NULL,
     nonkey30 CHAR(255) NOT NULL,
-    pad TEXT
-) ENGINE=]] .. mysql_table_engine ..  (mysql_table_options or "")
+    pad TEXT,
+    KEY k_%d (key1, key2, key3)
+) ENGINE=%s %s]], table_name, table_id, mysql_table_engine, (mysql_table_options or ""))
 
-    db_query(query)
+   db_query(query)
 
-    db_query("CREATE INDEX k_" .. table_id .. " on " .. table_name .. "(key1,key2,key3)")
+   print(string.format("Inserting %d records into '%s'", olap_table_size, table_name))
 
-    print("Inserting " .. olap_table_size .. " records into " .. table_name .. "'")
-
-    stmt = db_prepare([[INSERT INTO ]] .. table_name .. [[ SET key1=?, key2=?, key3=?, nonkey01=?, nonkey02=?, nonkey03=?, nonkey04=?, nonkey05=?, nonkey06=?, nonkey07=?, nonkey08=?, nonkey09=?, nonkey10=?, nonkey11=?, nonkey12=?, nonkey13=?, nonkey14=?, nonkey15=?, nonkey16=?, nonkey17=?, nonkey18=?, nonkey19=?, nonkey20=?, nonkey21=?, nonkey22=?, nonkey23=?, nonkey24=?, nonkey25=?, nonkey26=?, nonkey27=?, nonkey28=?, nonkey29=?, nonkey30=?]])
-    params = {}
-    for i = 1,33 do
-        params[i] = 1
-    end
-    db_bind_param(stmt, params)
+   db_query(begin_query)
+   stmt = db_prepare(string.format("INSERT INTO %s SET key1=?, key2=?, key3=?, nonkey01=?, nonkey02=?, nonkey03=?, nonkey04=?, nonkey05=?, nonkey06=?, nonkey07=?, nonkey08=?, nonkey09=?, nonkey10=?, nonkey11=?, nonkey12=?, nonkey13=?, nonkey14=?, nonkey15=?, nonkey16=?, nonkey17=?, nonkey18=?, nonkey19=?, nonkey20=?, nonkey21=?, nonkey22=?, nonkey23=?, nonkey24=?, nonkey25=?, nonkey26=?, nonkey27=?, nonkey28=?, nonkey29=?, nonkey30=?", table_name))
+   params = {}
+   for i = 1, 3 do
+      params[i] = 1
+   end
+   for i = 4, 33 do
+      params[i] = 'x'
+   end
+   db_bind_param(stmt, params)
  
-    for i = 1, olap_table_size do
-        for j = 1, 3 do
-            params[j] = sb_rand(1, olap_table_size)
-            params[j] = sb_rand(1, olap_table_size)
-            params[j] = sb_rand(1, olap_table_size)
-        end
-        for j = 4, 33 do
-            params[j] = sb_rand_str([[###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###########-###]])
-        end
-        rs = db_execute(stmt)
-    end
+   start = os.time()
+   db_query(begin_query)
+   for i = 1, olap_table_size do
+      for j = 1, 3 do
+            params[j] = sb_rand(1, 1000000)
+      end
+      for j = 4, 33 do
+         params[j] = sb_rand_str(
+         "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@@" ..
+	 "################" ..
+	 "@@@@@@@@@@@@@@@"
+	 )
+      end
+      rs = db_execute(stmt)
+      if i % 10000 == 0 then
+         db_query(commit_query)
+	 if (olap_verbose) then
+	    now = os.time()
+	    end_estimated = start + (now - start) * olap_table_size / i
+	    print(string.format("%s: %d/%d rows (start=%s, now=%s, end=%s)",
+	       table_name, i, olap_table_size,
+	       os.date("%X", start),
+	       os.date("%X", now),
+	       os.date("%X", end_estimated)))
+	 end
+         db_query(begin_query)
+      end
+   end
+   db_query(commit_query)
 end
 
 function prepare()
@@ -85,14 +122,13 @@ function prepare()
 
    local query
    local i
-   local j
 
    set_vars()
 
    db_connect()
 
    for i = 1, olap_tables_count do
-       create_insert(i)
+      create_insert(i)
    end
 
    return 0
@@ -103,12 +139,14 @@ function cleanup()
    print("olap cleanup(): entered")
 --]=====]
    local i
+   local table_name
 
    set_vars()
 
    for i = 1, olap_tables_count do
-       print("Dropping table 'olaptest" .. i .. "'...")
-       db_query("DROP TABLE olaptest".. i )
+      table_name = string.format("olaptest%d", i)
+      print(string.format("Dropping table '%s'", table_name))
+      db_query(string.format("DROP TABLE %s", table_name))
    end
 end
 
@@ -116,6 +154,9 @@ function set_vars()
 --[=====[
    print("olap set_vars(): entered")
 --]=====]
+   begin_query = "BEGIN"
+   commit_query = "COMMIT"
+   olap_verbose = olap_verbose or 0
    olap_table_size = olap_table_size or 10000
    olap_range_size = olap_range_size or 100
    olap_tables_count = olap_tables_count or 1
@@ -126,50 +167,49 @@ function set_vars()
 end
 
 function thread_init(thread_id)
-   print("olap thread_init(): entered")
 --[=====[
-   set_vars()
-   begin_query = "BEGIN"
-   commit_query = "COMMIT"
+print("olap thread_init(): entered")
 --]=====]
+set_vars()
 end
 
 function event(thread_id)
-   print("olap event(): entered")
 --[=====[
-   local rs
-   local i
-   local table_name
-   local range_start
-   local range_end
+print("olap event(): entered")
+--]=====]
+local rs
+local i
+local table_name
+local range_start
+local range_end
 
-   table_name = "olaptest" .. sb_rand_uniform(1, olap_tables_count)
-   db_query(begin_query)
+table_name = string.format("olaptest%d", sb_rand_uniform(1, olap_tables_count))
+
+db_query(begin_query)
 
    for i = 1, olap_simple_indexed_ranges do
       range_start = sb_rand(1, olap_table_size)
       range_end = range_start + olap_range_size
-      rs = db_query("SELECT * FROM " .. table_name .. " WHERE key1 BETWEEN " .. range_start .. " AND " .. range_end)
+      rs = db_query(string.format("SELECT * FROM %s WHERE key1 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    for i = 1, olap_simple_unindexed_ranges do
       range_start = sb_rand(1, olap_table_size)
       range_end = range_start + olap_range_size
-      rs = db_query("SELECT * FROM " .. table_name .. " WHERE key2 BETWEEN " .. range_start .. " AND " .. range_end)
+      rs = db_query(string.format("SELECT * FROM %s WHERE key2 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    for i = 1, olap_count_indexed_ranges do
       range_start = sb_rand(1, olap_table_size)
       range_end = range_start + olap_range_size
-      rs = db_query("SELECT COUNT(*) FROM " .. table_name .. " WHERE key1 BETWEEN " .. range_start .. " AND " .. range_end)
+      rs = db_query(string.format("SELECT COUNT(*) FROM %s WHERE key1 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    for i = 1, olap_count_unindexed_ranges do
       range_start = sb_rand(1, olap_table_size)
       range_end = range_start + olap_range_size
-      rs = db_query("SELECT COUNT(*) FROM " .. table_name .. " WHERE key2 BETWEEN " .. range_start .. " AND " .. range_end)
+      rs = db_query(string.format("SELECT COUNT(*) FROM %s WHERE key2 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    db_query(commit_query)
---]=====]
 end
