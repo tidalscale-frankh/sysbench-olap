@@ -16,6 +16,9 @@ function create_insert(table_id)
 
    table_name = string.format("olaptest%d", table_id)
 
+   --
+   -- This table is designed to fit exactly two rows in one 16KB InnoDB page.
+   --
    print(string.format("Creating table %s...", table_name))
    query = string.format([[CREATE TABLE IF NOT EXISTS %s (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -70,12 +73,12 @@ function create_insert(table_id)
       params[i] = 'x'
    end
    db_bind_param(stmt, params)
- 
+
    start = os.time()
    db_query(begin_query)
    for i = 1, olap_table_size do
       for j = 1, 3 do
-            params[j] = sb_rand(1, 1000000)
+            params[j] = sb_rand(1, olap_max_key)
       end
       for j = 4, 33 do
          params[j] = sb_rand_str(
@@ -158,12 +161,20 @@ function set_vars()
    commit_query = "COMMIT"
    olap_verbose = olap_verbose or 0
    olap_table_size = olap_table_size or 10000
-   olap_range_size = olap_range_size or 100
+   olap_max_key = olap_max_key or 1000000
+   olap_range_fraction = olap_range_pct or 1000
+   olap_range_size = olap_range_size or math.floor(olap_max_key / olap_range_fraction)
    olap_tables_count = olap_tables_count or 1
    olap_simple_indexed_ranges = olap_simple_ranges or 0
    olap_simple_unindexed_ranges = olap_simple_ranges or 0
    olap_count_indexed_ranges = olap_count_indexed_ranges or 1
    olap_count_unindexed_ranges = olap_count_unindexed_ranges or 1
+   olap_sample_type = olap_sample_type or "random"
+   if olap_sample_type ~= "random" and olap_sample_type ~= "tiled" then
+     os.exit()
+   end
+   olap_range_start = olap_range_start or sb_rand_uniform(1, olap_max_key)
+   olap_tile_size = olap_max_key / 37
 end
 
 function thread_init(thread_id)
@@ -188,25 +199,46 @@ table_name = string.format("olaptest%d", sb_rand_uniform(1, olap_tables_count))
 db_query(begin_query)
 
    for i = 1, olap_simple_indexed_ranges do
-      range_start = sb_rand(1, olap_table_size)
+
+      if olap_sample_type == "random" then
+         range_start = sb_rand(1, olap_max_key)
+      elseif olap_sample_type == "tiled" then
+         range_start = olap_range_start
+         olap_range_start = (olap_range_start + olap_tile_size * 8) % olap_max_key
+      end
       range_end = range_start + olap_range_size
       rs = db_query(string.format("SELECT * FROM %s WHERE key1 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    for i = 1, olap_simple_unindexed_ranges do
-      range_start = sb_rand(1, olap_table_size)
+      if olap_sample_type == "random" then
+         range_start = sb_rand(1, olap_max_key)
+      elseif olap_sample_type == "tiled" then
+         range_start = olap_range_start
+         olap_range_start = (olap_range_start + olap_tile_size * 8) % olap_max_key
+      end
       range_end = range_start + olap_range_size
       rs = db_query(string.format("SELECT * FROM %s WHERE key2 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    for i = 1, olap_count_indexed_ranges do
-      range_start = sb_rand(1, olap_table_size)
+      if olap_sample_type == "random" then
+         range_start = sb_rand(1, olap_max_key)
+      elseif olap_sample_type == "tiled" then
+         range_start = olap_range_start
+         olap_range_start = (olap_range_start + olap_tile_size * 8) % olap_max_key
+      end
       range_end = range_start + olap_range_size
       rs = db_query(string.format("SELECT COUNT(*) FROM %s WHERE key1 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
 
    for i = 1, olap_count_unindexed_ranges do
-      range_start = sb_rand(1, olap_table_size)
+      if olap_sample_type == "random" then
+         range_start = sb_rand(1, olap_max_key)
+      elseif olap_sample_type == "tiled" then
+         range_start = olap_range_start
+         olap_range_start = (olap_range_start + olap_tile_size * 8) % olap_max_key
+      end
       range_end = range_start + olap_range_size
       rs = db_query(string.format("SELECT COUNT(*) FROM %s WHERE key2 BETWEEN %d AND %d", table_name, range_start, range_end))
    end
