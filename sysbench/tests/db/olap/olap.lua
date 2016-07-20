@@ -1,3 +1,20 @@
+-- OLAP.LUA
+--
+-- Sysbench options:
+-- 
+-- olap_verbose - output detail, such as insertion progress (default: 0)
+-- olap_tables_count - number of tables to fill (default: 1)
+-- olap_table_size - number of rows to fill per table (default: 10000)
+-- olap_max_key - range of integer values in the key columns (default: 1000000)
+-- olap_range_fraction - the fraction of the key values to select per query (default: 1000)
+-- olap_range_size - the number of key values to select per query (default: olap_max_key / olap_range_faction)
+-- olap_simple_indexed_ranges - number of queries per event (default: 0)
+-- olap_simple_unindexed_ranges - number of queries per event (default: 0)
+-- olap_count_indexed_ranges - number of aggregate queries per event, lookup by index (default: 1)
+-- olap_count_unindexed_ranges - number of aggregate queries per event, lookup by non-index (default: 1)
+-- olap_sample_type - choose starting point randomly per query ("random") or cycle through table iteratively ("tiled") (default: "random")
+-- olap_range_start - starting key value per thread (default: random value between 1 and olap_max_key)
+
 pathtest = string.match(test, "(.*/)") or ""
 
 function create_insert(table_id)
