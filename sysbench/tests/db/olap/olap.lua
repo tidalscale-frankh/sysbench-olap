@@ -196,27 +196,26 @@ end
 
 function thread_init(thread_id)
 --[=====[
-print("olap thread_init(): entered")
+   print("olap thread_init(): entered")
 --]=====]
-set_vars()
+   set_vars()
 end
 
 function event(thread_id)
 --[=====[
-print("olap event(): entered")
+   print("olap event(): entered")
 --]=====]
-local rs
-local i
-local table_name
-local range_start
-local range_end
+   local rs
+   local i
+   local table_name
+   local range_start
+   local range_end
 
-table_name = string.format("olaptest%d", sb_rand_uniform(1, olap_tables_count))
+   table_name = string.format("olaptest%d", sb_rand_uniform(1, olap_tables_count))
 
-db_query(begin_query)
+   db_query(begin_query)
 
    for i = 1, olap_simple_indexed_ranges do
-
       if olap_sample_type == "random" then
          range_start = sb_rand(1, olap_max_key)
       elseif olap_sample_type == "tiled" then
