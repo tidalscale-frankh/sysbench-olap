@@ -190,7 +190,11 @@ function set_vars()
    if olap_sample_type ~= "random" and olap_sample_type ~= "tiled" then
      os.exit()
    end
-   olap_range_start = olap_range_start or sb_rand_uniform(1, olap_max_key)
+   if olap_sample_type == "random" then
+     olap_range_start = olap_range_start or sb_rand_uniform(1, olap_max_key)
+   else
+     olap_range_start = olap_range_start or 1
+   end
    olap_tile_size = olap_max_key / 37
 end
 
@@ -201,10 +205,9 @@ function thread_init(thread_id)
    set_vars()
 end
 
-function event(thread_id)
 --[=====[
+function event(thread_id)
    print("olap event(): entered")
---]=====]
    local rs
    local i
    local table_name
@@ -260,4 +263,34 @@ function event(thread_id)
    end
 
    db_query(commit_query)
+end
+--]=====]
+
+function event(thread_id)
+--[=====[
+   print("olap event(): entered")
+--]=====]
+   local rs
+   local table_name
+   local range_start
+   local range_end
+
+   print("olap-randtile event(): entered")
+   table_name = string.format("olaptest%d", sb_rand_uniform(1, olap_tables_count))
+
+   db_query(begin_query)
+
+   range_start = 1
+   range_end = olap_table_size
+--[=====[
+   rs = db_query(string.format("SELECT * FROM %s WHERE key2 BETWEEN %d AND %d", table_name, range_start, range_end))
+   rs = db_query(string.format("SELECT COUNT(%s.id) AS tbl_row_count FROM %s WHERE %s.key2 = %d", table_name, table_name, table_name, range_end))
+   rs = db_query(string.format("SELECT COUNT(%s.id) AS tbl_row_count FROM %s WHERE %s.nonkey02 = %d", table_name, table_name, table_name, range_end))
+--]=====]
+   rs = db_query(string.format("SELECT * FROM %s LIMIT %d", table_name, range_end))
+
+   db_query(commit_query)
+
+   print("olap-randtile event(): returning")
+   return
 end
