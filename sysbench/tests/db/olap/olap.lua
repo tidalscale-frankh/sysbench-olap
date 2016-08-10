@@ -281,13 +281,17 @@ function event(thread_id)
    db_query(begin_query)
 
    range_start = 1
-   range_end = olap_table_size
+   range_end = olap_range_size
 --[=====[
    rs = db_query(string.format("SELECT * FROM %s WHERE key2 BETWEEN %d AND %d", table_name, range_start, range_end))
    rs = db_query(string.format("SELECT COUNT(%s.id) AS tbl_row_count FROM %s WHERE %s.key2 = %d", table_name, table_name, table_name, range_end))
    rs = db_query(string.format("SELECT COUNT(%s.id) AS tbl_row_count FROM %s WHERE %s.nonkey02 = %d", table_name, table_name, table_name, range_end))
---]=====]
    rs = db_query(string.format("SELECT * FROM %s LIMIT %d", table_name, range_end))
+   rs = db_query(string.format("SELECT COUNT(*) FROM %s WHERE %s.nonkey02 = %d LIMIT %d", table_name, table_name, range_end, range_end))
+--]=====]
+
+   print(string.format("SELECT COUNT(*) FROM %s WHERE %s.nonkey02 < 4294967295 AND id < %d", table_name, table_name, range_end))
+   rs = db_query(string.format("SELECT COUNT(*) FROM %s WHERE %s.nonkey02 < 4294967295 AND id < %d", table_name, table_name, range_end))
 
    db_query(commit_query)
 
